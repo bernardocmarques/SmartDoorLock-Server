@@ -18,6 +18,11 @@ class FirebaseUtil:
 
         self.db = db
 
+    def delete_key(self, path):
+        ref = self.db.reference(path)
+        ref.delete()
+        return True
+
     def set_data(self, path, data):
         ref = self.db.reference(path)
         ref.update(data)
