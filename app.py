@@ -28,23 +28,41 @@ def register_door_lock():  # todo protect this
     args = request.json
 
     mac = args["MAC"] if args["MAC"] else None
-    ip = args["ip_address"] if args["ip_address"] else None
-    pubkey = args["pubkey"] if args["pubkey"] else None
+    certificate = args["certificate"] if args["certificate"] else None
 
-    if not mac or not ip or not pubkey:
+    if not mac or not certificate:
         return jsonify({'success': False, 'code': 400, 'msg': 'Missing arguments.'})
 
-    mac = mac.lower()
+    mac = mac.upper()
 
     door = {
         "MAC": mac,
-        "ip_address": ip,
-        "pubkey": pubkey
+        "certificate": certificate
     }
 
     fb_util.set_data(f"doors/{mac}", door)
 
     return jsonify({'success': True, 'door': door})
+
+
+@app.route("/get-door-certificate", methods=['GET'])
+def get_door_certificate():
+    args = request.args
+    id_token = args["id_token"] if args["id_token"] else None
+    smart_lock_mac = args["smart_lock_mac"].upper() if args["smart_lock_mac"] else None
+
+    if not id_token:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
+
+        # if not check_if_user(id_token):# todo protect this
+        #     return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
+
+    if not smart_lock_mac:
+        return jsonify({'success': False, 'code': 400, 'msg': 'No smart_lock_mac'})
+
+    certificate = fb_util.get_data(f"doors/{smart_lock_mac}/certificate")
+
+    return jsonify({'success': True, 'certificate': certificate})
 
 
 @app.route("/register-invite", methods=['POST'])
@@ -80,8 +98,8 @@ def register_invite():
     return jsonify({'success': True, 'inviteID': invite_code})
 
 
-@app.route("/request-user-authorization", methods=['POST'])
-def request_user_authorization():
+@app.route("/request-authorization", methods=['POST'])
+def request_authorization():
     args = request.json
     signature = args["signature"] if args["signature"] else None
 
@@ -101,7 +119,13 @@ def request_user_authorization():
     mac = data_dict["smart_lock_MAC"].upper()
     user_id = data_dict["user_id"]
 
-    response = fb_util.set_data(f'authorizations/{user_id}/{mac}', data_dict)
+    if not user_id or not mac:
+        return jsonify({'success': False, 'code': 400, 'msg': 'No user_id or mac'})
+
+    response = fb_util.get_data(f'authorizations/{mac}/{user_id}')
+
+    print(response)
+    print(len(str(response)))
 
     return jsonify({'success': True, 'data': response})
 
@@ -148,7 +172,7 @@ def redeem_invite():  # todo protect this and also prevent multiple requests
         authorization["one_day"] = invite["one_day"]
 
     fb_util.delete_key(f"invites/{invite_id}")
-    fb_util.set_data(f"authorizations/{user_id}/{authorization['smart_lock_MAC']}", authorization)
+    fb_util.set_data(f"authorizations/{authorization['smart_lock_MAC']}/{user_id}", authorization)
 
     return jsonify({'success': True})
 
