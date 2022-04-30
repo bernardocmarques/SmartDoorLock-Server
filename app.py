@@ -23,6 +23,25 @@ def ping():
     return jsonify({'success': True})
 
 
+@app.route("/get-username", methods=['GET'])
+def get_username():
+    args = request.args
+
+    id_token = args["id_token"] if args["id_token"] else None
+
+    if not id_token:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
+
+    if not check_if_user(id_token):
+        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
+
+    username = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/username")
+    if not username:
+        username = fb_util.set_random_username(get_decoded_claims_id_token(id_token).get("uid"))
+
+    return jsonify({'success': True, 'username': username})
+
+
 @app.route("/register-door-lock", methods=['POST'])
 def register_door_lock():  # todo protect this
     args = request.json
@@ -50,12 +69,12 @@ def get_door_certificate():
     args = request.args
     id_token = args["id_token"] if args["id_token"] else None
     smart_lock_mac = args["smart_lock_mac"].upper() if args["smart_lock_mac"] else None
-
+    print(id_token)
     if not id_token:
         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
 
-        # if not check_if_user(id_token):# todo protect this
-        #     return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
+    if not check_if_user(id_token):
+        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
 
     if not smart_lock_mac:
         return jsonify({'success': False, 'code': 400, 'msg': 'No smart_lock_mac'})
@@ -117,12 +136,12 @@ def request_authorization():
 
     data_dict = json.loads(data)
     mac = data_dict["smart_lock_MAC"].upper()
-    user_id = data_dict["user_id"]
+    username = data_dict["username"]
 
-    if not user_id or not mac:
-        return jsonify({'success': False, 'code': 400, 'msg': 'No user_id or mac'})
+    if not username or not mac:
+        return jsonify({'success': False, 'code': 400, 'msg': 'No username or mac'})
 
-    response = fb_util.get_data(f'authorizations/{mac}/{user_id}')
+    response = fb_util.get_data(f'authorizations/{mac}/{username}')
 
     print(response)
     print(len(str(response)))
@@ -141,13 +160,13 @@ def redeem_invite():  # todo protect this and also prevent multiple requests
     if not id_token:
         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
 
-    # if not check_if_user(id_token):# todo protect this
-    #     return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
+    if not check_if_user(id_token):
+        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
 
     if not invite_id:
         return jsonify({'success': False, 'code': 400, 'msg': 'No invite id'})
 
-    user_id = id_token  # fixme change this to acctualy get user_id form id_token
+    username = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/username")
 
     invite = fb_util.get_data(f"invites/{invite_id}")
 
@@ -155,7 +174,7 @@ def redeem_invite():  # todo protect this and also prevent multiple requests
         return jsonify({'success': False, 'code': 400, 'msg': 'Invalid invite'})
 
     authorization = {
-        "user_id": user_id,
+        "username": username,
         "smart_lock_MAC": invite["smart_lock_MAC"],
         "type": invite["type"],
         "master_key_encrypted_lock": master_key_encrypted_lock
@@ -171,8 +190,8 @@ def redeem_invite():  # todo protect this and also prevent multiple requests
     if invite["type"] == 4:
         authorization["one_day"] = invite["one_day"]
 
-    fb_util.delete_key(f"invites/{invite_id}")
-    fb_util.set_data(f"authorizations/{authorization['smart_lock_MAC']}/{user_id}", authorization)
+    # fb_util.delete_key(f"invites/{invite_id}")
+    fb_util.set_data(f"authorizations/{authorization['smart_lock_MAC']}/{username}", authorization)
 
     return jsonify({'success': True})
 

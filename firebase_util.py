@@ -5,7 +5,10 @@ import firebase_admin
 from firebase_admin import credentials, auth, db
 from firebase_admin.auth import InvalidIdTokenError, InvalidSessionCookieError
 from firebase_admin.exceptions import FirebaseError
-import secrets
+import random
+import string
+
+characters = string.ascii_letters + string.digits
 
 
 class FirebaseUtil:
@@ -37,9 +40,17 @@ class FirebaseUtil:
         ref = self.db.reference(path)
         return ref.get()
 
+    def set_random_username(self, user_id):
+        ref = self.db.reference(f"users/{user_id}")
+        username = generate_random_id(15)
+        ref.update({
+            'username': username
+        })
+        return username
+
 
 def generate_random_id(n):
-    return secrets.token_urlsafe(n)
+    return ''.join(random.choice(characters) for _ in range(n))
 
 
 def get_decoded_claims_id_token(id_token, **kwargs):
@@ -55,3 +66,6 @@ def check_if_admin(id_token):
 
 def check_if_user(id_token):
     return not not get_decoded_claims_id_token(id_token)
+
+
+
