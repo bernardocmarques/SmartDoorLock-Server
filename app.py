@@ -190,7 +190,7 @@ def redeem_invite():  # todo protect this and also prevent multiple requests
     if invite["type"] == 4:
         authorization["one_day"] = invite["one_day"]
 
-    # fb_util.delete_key(f"invites/{invite_id}")
+    fb_util.delete_key(f"invites/{invite_id}")
     fb_util.set_data(f"authorizations/{authorization['smart_lock_MAC']}/{username}", authorization)
 
     return jsonify({'success': True})
