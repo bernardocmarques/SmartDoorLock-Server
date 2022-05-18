@@ -43,7 +43,7 @@ def get_username():
 
 
 @app.route("/register-door-lock", methods=['POST'])
-def register_door_lock():  # todo protect this
+def register_door_lock():  # todo protect this (verificate certificate and check if for right mac)
     args = request.json
 
     mac = args["MAC"] if args["MAC"] else None
