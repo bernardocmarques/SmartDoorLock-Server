@@ -42,12 +42,36 @@ def get_username():
     return jsonify({'success': True, 'username': username})
 
 
+@app.route("/check-lock-registration-status", methods=['GET'])
+def check_lock_registration_status():
+    args = request.args
+
+    mac = args.get("MAC") if args.get("MAC") else None
+
+    if not mac:
+        return jsonify({'success': False, 'code': 400, 'msg': 'Missing argument MAC.'})
+
+    mac = mac.upper()
+
+    lock_registered = not not fb_util.get_data(f"doors/{mac}")
+    lock_with_auths = not not fb_util.get_data(f"authorizations/{mac}")
+
+    if lock_registered and lock_with_auths:
+        return jsonify({'success': True, 'status': 2})  # registered and with auths
+    elif lock_registered and not lock_with_auths:
+        return jsonify({'success': True, 'status': 1})  # just registered
+    elif not lock_registered and not lock_with_auths:
+        return jsonify({'success': True, 'status': 0})  # just not registered
+    else:
+        return jsonify({'success': False, 'code': 500, 'msg': 'Unknown state'})  # just not registered
+
+
 @app.route("/register-door-lock", methods=['POST'])
 def register_door_lock():  # todo protect this (verificate certificate and check if for right mac)
     args = request.json
 
-    mac = args["MAC"] if args["MAC"] else None
-    certificate = args["certificate"] if args["certificate"] else None
+    mac = args.get("MAC") if args.get("MAC") else None
+    certificate = args.get("certificate") if args.get("certificate") else None
 
     if not mac or not certificate:
         return jsonify({'success': False, 'code': 400, 'msg': 'Missing arguments.'})
@@ -61,14 +85,14 @@ def register_door_lock():  # todo protect this (verificate certificate and check
 
     fb_util.set_data(f"doors/{mac}", door)
 
-    return jsonify({'success': True, 'door': door})
+    return jsonify({'success': True})
 
 
 @app.route("/get-door-certificate", methods=['GET'])
 def get_door_certificate():
     args = request.args
-    id_token = args["id_token"] if args["id_token"] else None
-    smart_lock_mac = args["smart_lock_mac"].upper() if args["smart_lock_mac"] else None
+    id_token = args.get("id_token") if args.get("id_token") else None
+    smart_lock_mac = args.get("smart_lock_mac").upper() if args.get("smart_lock_mac") else None
     print(id_token)
     if not id_token:
         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
@@ -84,19 +108,46 @@ def get_door_certificate():
     return jsonify({'success': True, 'certificate': certificate})
 
 
+# @app.route("/create-first-invite", methods=['POST'])
+# def register_invite():
+#     args = request.json
+#     signature = args.get("signature") if args.get("signature") else None
+#
+#     if not signature:
+#         return jsonify({'success': False, 'code': 403, 'msg': 'Message not signed'})
+#
+#     rsa = RSA_Util("public_key.pem")
+#     if not rsa.is_signature_valid(args.get("data"), signature):
+#         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid signature'})
+#
+#     data = args.get("data") if args.get("data") else None
+#
+#     if not data:
+#         return jsonify({'success': False, 'code': 400, 'msg': 'Invalid data'})
+#
+#     data_dict = json.loads(data)
+#     data_dict["smart_lock_MAC"] = data_dict["smart_lock_MAC"].upper()
+#
+#     fb_util.set_data(f"first_invites/{data_dict["smart_lock_MAC"]}", data_dict)
+#
+#     invite_code = base64.b64encode(f'{data_dict["smart_lock_MAC"]} {invite_id}'.encode()).decode()
+#
+#     return jsonify({'success': True, 'inviteID': invite_code})
+
+
 @app.route("/register-invite", methods=['POST'])
 def register_invite():
     args = request.json
-    signature = args["signature"] if args["signature"] else None
+    signature = args.get("signature") if args.get("signature") else None
 
     if not signature:
         return jsonify({'success': False, 'code': 403, 'msg': 'Message not signed'})
 
     rsa = RSA_Util("public_key.pem")
-    if not rsa.is_signature_valid(args["data"], signature):
+    if not rsa.is_signature_valid(args.get("data"), signature):
         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid signature'})
 
-    data = args["data"] if args["data"] else None
+    data = args.get("data") if args.get("data") else None
 
     if not data:
         return jsonify({'success': False, 'code': 400, 'msg': 'Invalid data'})
@@ -120,7 +171,7 @@ def register_invite():
 @app.route("/request-authorization", methods=['POST'])
 def request_authorization():
     args = request.json
-    signature = args["signature"] if args["signature"] else None
+    signature = args.get("signature") if args.get("signature") else None
 
     if not signature:
         return jsonify({'success': False, 'code': 403, 'msg': 'Message not signed'})
@@ -129,7 +180,7 @@ def request_authorization():
     if not rsa.is_signature_valid(args["data"], signature):
         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid signature'})
 
-    data = args["data"] if args["data"] else None
+    data = args.get("data") if args.get("data") else None
 
     if not data:
         return jsonify({'success': False, 'code': 400, 'msg': 'Invalid data'})
@@ -153,9 +204,9 @@ def request_authorization():
 def redeem_invite():  # todo protect this and also prevent multiple requests
     args = request.json
 
-    id_token = args["id_token"] if args["id_token"] else None
-    invite_id = args["invite_id"] if args["invite_id"] else None
-    master_key_encrypted_lock = args["master_key_encrypted_lock"] if args["master_key_encrypted_lock"] else None
+    id_token = args.get("id_token") if args.get("id_token") else None
+    invite_id = args.get("invite_id") if args.get("invite_id") else None
+    master_key_encrypted_lock = args.get("master_key_encrypted_lock") if args.get("master_key_encrypted_lock") else None
 
     if not id_token:
         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
