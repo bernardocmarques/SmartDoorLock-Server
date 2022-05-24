@@ -1,7 +1,9 @@
 import base64
 from datetime import datetime, timedelta
+from os import path, listdir
 
-from flask import Flask, request, jsonify, abort, redirect, make_response
+
+from flask import Flask, request, jsonify, abort, redirect, make_response, send_file
 from flask_cors import CORS
 from firebase_util import *
 from rsa_util import RSA_Util
@@ -17,17 +19,58 @@ fb_util = FirebaseUtil()
 INVALID_GET_MESSAGE = "Invalid get"
 INVALID_POST_MESSAGE = "Invalid post"
 
+''' ---------------------------------------- '''
+''' ----------------- Open ----------------- '''
+''' ---------------------------------------- '''
+
 
 @app.route("/")
 def ping():
     return jsonify({'success': True})
 
 
+@app.route("/get-icon", methods=['GET'])
+def get_icon():
+    args = request.args
+
+    icon_id = args.get("icon_id") if args.get("icon_id") else None
+
+    if not icon_id:
+        return "icon_id not provided", 404
+
+    filename = f"lock_icons/{icon_id}.png"
+    file_exists = path.exists(filename)
+
+    if not file_exists:
+        return f"Icon with ID \"{icon_id}\" does no exist", 404
+
+    return send_file(filename, mimetype='image/png')
+
+
+@app.route("/get-all-icons", methods=['GET'])
+def get_all_icon():
+    files = listdir('lock_icons')
+
+    icon_ids = []
+
+    for file in files:
+        if ".svg" in file:
+            file = file.replace(".svg", "")
+            icon_ids.append(file)
+
+    return jsonify({'success': True, 'icons': icon_ids})
+
+
+''' ---------------------------------------- '''
+''' ----------------- Lock ----------------- '''
+''' ---------------------------------------- '''
+
+
 @app.route("/get-username", methods=['GET'])
 def get_username():
     args = request.args
 
-    id_token = args["id_token"] if args["id_token"] else None
+    id_token = args.get("id_token") if args.get("id_token") else None
 
     if not id_token:
         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
@@ -245,6 +288,28 @@ def redeem_invite():  # todo protect this and also prevent multiple requests
     fb_util.set_data(f"authorizations/{authorization['smart_lock_MAC']}/{username}", authorization)
 
     return jsonify({'success': True})
+
+
+@app.route("/get-user-locks", methods=['GET'])
+def get_user_locks():
+    args = request.args
+    id_token = args.get("id_token") if args.get("id_token") else None
+
+    if not id_token:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
+
+    if not check_if_user(id_token):
+        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
+
+    user_id = get_decoded_claims_id_token(id_token).get('uid')
+
+    locks = fb_util.get_data(f"users/{user_id}/locks")
+
+    if not locks:
+        return jsonify({'success': True, 'locks': []})
+
+
+    return jsonify({'success': True, 'locks': list(locks.values())})
 
 
 if __name__ == "__main__":
