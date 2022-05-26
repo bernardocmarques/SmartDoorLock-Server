@@ -2,7 +2,6 @@ import base64
 from datetime import datetime, timedelta
 from os import path, listdir
 
-
 from flask import Flask, request, jsonify, abort, redirect, make_response, send_file
 from flask_cors import CORS
 from firebase_util import *
@@ -54,8 +53,8 @@ def get_all_icon():
     icon_ids = []
 
     for file in files:
-        if ".svg" in file:
-            file = file.replace(".svg", "")
+        if ".png" in file:
+            file = file.replace(".png", "")
             icon_ids.append(file)
 
     return jsonify({'success': True, 'icons': icon_ids})
@@ -206,7 +205,9 @@ def register_invite():
 
     fb_util.set_data(f"invites/{invite_id}", data_dict)
 
-    invite_code = base64.b64encode(f'{data_dict["smart_lock_MAC"]} {invite_id}'.encode()).decode()
+    ble_addr = fb_util.get_data(f"doors/{data_dict['smart_lock_MAC']}/BLE")
+
+    invite_code = base64.b64encode(f'{invite_id} {data_dict["smart_lock_MAC"]} {ble_addr}'.encode()).decode()
 
     return jsonify({'success': True, 'inviteID': invite_code})
 
@@ -308,8 +309,33 @@ def get_user_locks():
     if not locks:
         return jsonify({'success': True, 'locks': []})
 
-
     return jsonify({'success': True, 'locks': list(locks.values())})
+
+
+@app.route("/set-user-locks", methods=['POST'])
+def set_user_locks():
+    args = request.json
+    id_token = args.get("id_token") if args.get("id_token") else None
+    lock = args.get("lock") if args.get("lock") else {}
+
+    if not id_token:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
+
+    if not check_if_user(id_token):
+        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
+
+    user_id = get_decoded_claims_id_token(id_token).get('uid')
+
+    if not lock:
+        return jsonify({'success': False, 'code': 403, 'msg': 'Lock information not provided'})
+
+    lock["BLE"] = lock.get("BLE").upper() if lock.get("BLE") else ""
+    lock["MAC"] = lock.get("MAC").upper() if lock.get("MAC") else ""
+    lock["id"] = lock.get("id").upper() if lock.get("id") else ""
+
+    fb_util.set_data(f"users/{user_id}/locks/{lock.get('id')}", lock)
+
+    return jsonify({'success': True})
 
 
 if __name__ == "__main__":
