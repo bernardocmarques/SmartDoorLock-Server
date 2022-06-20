@@ -28,7 +28,7 @@ def ping():
     return jsonify({'success': True})
 
 
-@app.route("/.well-known/assetlinks.json")
+@app.route("new-lock/.well-known/assetlinks.json")
 def asset_links():
     return send_file('assetlinks.json', attachment_filename='assetlinks.json')
 
