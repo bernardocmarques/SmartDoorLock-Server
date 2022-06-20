@@ -1,0 +1,5 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target" : { "namespace": "android_app", "package_name": "com.bernardocmarques.smartlockclient",
+               "sha256_cert_fingerprints": ["EF:B4:5D:EE:F5:61:66:47:D6:B1:61:C2:2B:DF:4E:1E:5D:CB:AF:B5:C0:81:9A:A7:5D:57:80:F1:D3:94:19:19"] }
+}]

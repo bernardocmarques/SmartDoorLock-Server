@@ -28,6 +28,11 @@ def ping():
     return jsonify({'success': True})
 
 
+@app.route("/.well-known/assetlinks.json")
+def asset_links():
+    return send_file('assetlinks.json', attachment_filename='assetlinks.json')
+
+
 @app.route("/get-icon", methods=['GET'])
 def get_icon():
     args = request.args
