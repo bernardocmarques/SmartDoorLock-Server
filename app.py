@@ -356,6 +356,7 @@ def delete_user_locks():
     user_id = get_decoded_claims_id_token(id_token).get('uid')
 
     fb_util.delete_key(f"users/{user_id}/locks/{lock_id}")
+    fb_util.delete_key(f"authorizations/{lock_id}/{user_id}")
 
     return jsonify({'success': True})
 
