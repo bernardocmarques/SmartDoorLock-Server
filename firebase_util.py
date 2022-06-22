@@ -40,6 +40,10 @@ class FirebaseUtil:
         ref = self.db.reference(path)
         return ref.get()
 
+    def get_data_where_child_equal_to(self, path, child, value):
+        ref = self.db.reference(path)
+        return ref.order_by_child(child).equal_to(value).limit_to_first(1).get()
+
     def set_random_username(self, user_id):
         ref = self.db.reference(f"users/{user_id}")
         username = generate_random_id(15)
@@ -66,6 +70,3 @@ def check_if_admin(id_token):
 
 def check_if_user(id_token):
     return not not get_decoded_claims_id_token(id_token)
-
-
-

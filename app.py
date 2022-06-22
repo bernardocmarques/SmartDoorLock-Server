@@ -338,5 +338,51 @@ def set_user_locks():
     return jsonify({'success': True})
 
 
+@app.route("/delete-user-locks", methods=['POST'])
+def delete_user_locks():
+    args = request.json
+    id_token = args.get("id_token") if args.get("id_token") else None
+    lock_id = args.get("lock_id") if args.get("lock_id") else {}
+
+    if not id_token:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
+
+    if not lock_id:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Lock Id'})
+
+    if not check_if_user(id_token):
+        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
+
+    user_id = get_decoded_claims_id_token(id_token).get('uid')
+
+    fb_util.set_data(f"users/{user_id}/locks/{lock_id}", None)
+
+    return jsonify({'success': True})
+
+
+@app.route("/get-lock-mac", methods=['GET'])
+def get_user_locks():
+    args = request.args
+    id_token = args.get("id_token") if args.get("id_token") else None
+    ble_address = args.get("ble_address") if args.get("ble_address") else None
+
+    if not id_token:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
+
+    if not ble_address:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No BLE address'})
+
+    if not check_if_user(id_token):
+        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
+
+    lock = fb_util.get_data_where_child_equal_to(f"doors", "BLE", ble_address)
+
+    if not lock:
+        return jsonify(
+            {'success': False, 'code': 404, 'msg': f'Could not found Smart Lock with BLE address {ble_address}'})
+
+    return jsonify({'success': True, 'mac': lock["MAC"]})
+
+
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0')
