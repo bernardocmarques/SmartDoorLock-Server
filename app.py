@@ -338,7 +338,7 @@ def set_user_locks():
     return jsonify({'success': True})
 
 
-@app.route("/delete-user-locks", methods=['POST'])
+@app.route("/delete-user-lock", methods=['POST'])
 def delete_user_locks():
     args = request.json
     id_token = args.get("id_token") if args.get("id_token") else None
@@ -355,7 +355,7 @@ def delete_user_locks():
 
     user_id = get_decoded_claims_id_token(id_token).get('uid')
 
-    fb_util.set_data(f"users/{user_id}/locks/{lock_id}", None)
+    fb_util.delete_key(f"users/{user_id}/locks/{lock_id}")
 
     return jsonify({'success': True})
 
