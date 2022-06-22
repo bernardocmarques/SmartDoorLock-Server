@@ -361,7 +361,7 @@ def delete_user_locks():
 
 
 @app.route("/get-lock-mac", methods=['GET'])
-def get_user_locks():
+def get_lock_mac():
     args = request.args
     id_token = args.get("id_token") if args.get("id_token") else None
     ble_address = args.get("ble_address") if args.get("ble_address") else None
