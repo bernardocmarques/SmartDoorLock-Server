@@ -1,12 +1,14 @@
 import base64
 from datetime import datetime, timedelta
 from os import path, listdir
+from typing import Dict, Any
 
 from flask import Flask, request, jsonify, abort, redirect, make_response, send_file
 from flask_cors import CORS
 from firebase_util import *
 from rsa_util import RSA_Util
 from enum import Enum
+from lock_client_util import LockClient
 
 os.chdir(os.path.dirname(__file__))
 
@@ -383,6 +385,53 @@ def get_lock_mac():
             {'success': False, 'code': 404, 'msg': f'Could not found Smart Lock with BLE address {ble_address}'})
 
     return jsonify({'success': True, 'mac': lock["MAC"]})
+
+
+remote_connections_alive: dict[tuple, LockClient] = {}
+
+
+@app.route("/remote-connection", methods=['POST'])
+def remote_connection():
+    args = request.json
+    id_token = args.get("id_token") if args.get("id_token") else None
+    lock_id = args.get("lock_id") if args.get("lock_id") else None
+    msg = args.get("msg") if args.get("msg") else None
+
+    if not id_token:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
+
+    # if not check_if_user(id_token):
+    #     return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
+
+    if not lock_id:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Lock id'})
+
+    if not msg:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No message'})
+
+    # user_id = get_decoded_claims_id_token(id_token).get('uid')
+    user_id = id_token  # fixme remove
+
+    lock = fb_util.get_data(f"doors/{lock_id}")
+
+    if not lock:
+        return jsonify(
+            {'success': False, 'code': 404, 'msg': f'Could not found Smart Lock with id {lock_id}'})
+
+    if not lock.get("IP"):
+        return jsonify(
+            {'success': False, 'code': 500, 'msg': f'Smart Lock is not correctly registered in our systems.'})
+
+    if (user_id, lock_id) not in remote_connections_alive:
+        lock_client = LockClient(lock.get("IP"))
+        remote_connections_alive[(user_id, lock_id)] = lock_client
+
+    response = remote_connections_alive.get((user_id, lock_id)).send_msg_to_lock(msg)
+
+    if response:
+        return jsonify({'success': True, 'response': response.decode()})
+    else:
+        return jsonify({'success': False, 'code': 500, 'msg': f'Error communicating with door.'})
 
 
 if __name__ == "__main__":
