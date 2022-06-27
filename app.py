@@ -396,12 +396,13 @@ def remote_connection():
     id_token = args.get("id_token") if args.get("id_token") else None
     lock_id = args.get("lock_id") if args.get("lock_id") else None
     msg = args.get("msg") if args.get("msg") else None
+    reset = bool(args.get("reset")) if args.get("reset") else False
 
     if not id_token:
         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
 
-    # if not check_if_user(id_token):
-    #     return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
+    if not check_if_user(id_token):
+        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
 
     if not lock_id:
         return jsonify({'success': False, 'code': 403, 'msg': 'No Lock id'})
@@ -409,8 +410,7 @@ def remote_connection():
     if not msg:
         return jsonify({'success': False, 'code': 403, 'msg': 'No message'})
 
-    # user_id = get_decoded_claims_id_token(id_token).get('uid')
-    user_id = id_token  # fixme remove
+    user_id = get_decoded_claims_id_token(id_token).get('uid')
 
     lock = fb_util.get_data(f"doors/{lock_id}")
 
@@ -423,6 +423,11 @@ def remote_connection():
             {'success': False, 'code': 500, 'msg': f'Smart Lock is not correctly registered in our systems.'})
 
     if (user_id, lock_id) not in remote_connections_alive:
+        lock_client = LockClient(lock.get("IP"))
+        remote_connections_alive[(user_id, lock_id)] = lock_client
+
+    elif reset:
+        remote_connections_alive.get((user_id, lock_id)).close_sock()
         lock_client = LockClient(lock.get("IP"))
         remote_connections_alive[(user_id, lock_id)] = lock_client
 
