@@ -27,7 +27,7 @@ INVALID_POST_MESSAGE = "Invalid post"
 
 @app.route("/")
 def ping():
-    return jsonify({'success': True})
+    return jsonify({'success': True, "date": "27-06-2022 21:48"})
 
 
 @app.route("/get-icon", methods=['GET'])
