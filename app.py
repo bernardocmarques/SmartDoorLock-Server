@@ -18,6 +18,14 @@ fb_util = FirebaseUtil()
 INVALID_GET_MESSAGE = "Invalid get"
 INVALID_POST_MESSAGE = "Invalid post"
 
+
+def _get_remote_ip(req):
+    if req.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        return req.environ['REMOTE_ADDR']
+    else:
+        return req.environ['HTTP_X_FORWARDED_FOR']
+
+
 ''' ---------------------------------------- '''
 ''' ----------------- Open ----------------- '''
 ''' ---------------------------------------- '''
@@ -25,11 +33,6 @@ INVALID_POST_MESSAGE = "Invalid post"
 
 @app.route("/")
 def ping():
-    ip = None
-    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
-        ip = request.environ['REMOTE_ADDR']
-    else:
-        ip = request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
     return jsonify({'success': True, "ip": ip})
 
 
@@ -103,6 +106,9 @@ def check_lock_registration_status():
     lock_registered = not not fb_util.get_data(f"doors/{mac}")
     lock_with_auths = not not fb_util.get_data(f"authorizations/{mac}")
 
+    if lock_registered:
+        fb_util.set_data(f"doors/{mac}/IP", _get_remote_ip(request))
+
     if lock_registered and lock_with_auths:
         return jsonify({'success': True, 'status': 2})  # registered and with auths
     elif lock_registered and not lock_with_auths:
@@ -131,6 +137,7 @@ def register_door_lock():  # todo protect this (verificate certificate and check
     }
 
     fb_util.set_data(f"doors/{mac}", door)
+    fb_util.set_data(f"doors/{mac}/IP", _get_remote_ip(request))
 
     return jsonify({'success': True})
 
