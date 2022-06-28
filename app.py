@@ -25,7 +25,12 @@ INVALID_POST_MESSAGE = "Invalid post"
 
 @app.route("/")
 def ping():
-    return jsonify({'success': True, "ip": request.remote_addr})
+    ip = None
+    if request.environ.get('HTTP_X_FORWARDED_FOR') is None:
+        ip = request.environ['REMOTE_ADDR']
+    else:
+        ip = request.environ['HTTP_X_FORWARDED_FOR']  # if behind a proxy
+    return jsonify({'success': True, "ip": ip})
 
 
 @app.route("/get-icon", methods=['GET'])
