@@ -137,7 +137,7 @@ def register_door_lock():  # todo protect this (verificate certificate and check
     }
 
     fb_util.set_data(f"doors/{mac}", door)
-    fb_util.set_data(f"doors/{mac}/IP", _get_remote_ip(request))
+    fb_util.set_data(f"doors/{mac}", {"IP": _get_remote_ip(request)})
 
     return jsonify({'success': True})
 
