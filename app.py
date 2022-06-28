@@ -107,7 +107,7 @@ def check_lock_registration_status():
     lock_with_auths = not not fb_util.get_data(f"authorizations/{mac}")
 
     if lock_registered:
-        fb_util.set_data(f"doors/{mac}/IP", _get_remote_ip(request))
+        fb_util.set_data(f"doors/{mac}", {"IP": _get_remote_ip(request)})
 
     if lock_registered and lock_with_auths:
         return jsonify({'success': True, 'status': 2})  # registered and with auths
