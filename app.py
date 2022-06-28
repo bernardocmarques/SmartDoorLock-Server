@@ -1,13 +1,11 @@
 import base64
-from datetime import datetime, timedelta
 from os import path, listdir
-from typing import Dict, Any
+from time import sleep
 
 from flask import Flask, request, jsonify, abort, redirect, make_response, send_file
 from flask_cors import CORS
 from firebase_util import *
 from rsa_util import RSA_Util
-from enum import Enum
 from lock_client_util import LockClient
 
 os.chdir(os.path.dirname(__file__))
@@ -27,6 +25,8 @@ INVALID_POST_MESSAGE = "Invalid post"
 
 @app.route("/")
 def ping():
+    print("entrio")
+    sleep(5)
     return jsonify({'success': True, "date": "27-06-2022 21:48"})
 
 
@@ -396,7 +396,8 @@ def remote_connection():
     id_token = args.get("id_token") if args.get("id_token") else None
     lock_id = args.get("lock_id") if args.get("lock_id") else None
     msg = args.get("msg") if args.get("msg") else None
-    reset = bool(args.get("reset")) if args.get("reset") else False
+    close = bool(args.get("close")) if args.get("close") else False
+    print(args)
 
     if not id_token:
         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
@@ -426,12 +427,12 @@ def remote_connection():
         lock_client = LockClient(lock.get("IP"))
         remote_connections_alive[(user_id, lock_id)] = lock_client
 
-    elif reset:
-        remote_connections_alive.get((user_id, lock_id)).close_sock()
-        lock_client = LockClient(lock.get("IP"))
-        remote_connections_alive[(user_id, lock_id)] = lock_client
-
     response = remote_connections_alive.get((user_id, lock_id)).send_msg_to_lock(msg)
+
+    if close:
+        print("entra")
+        remote_connections_alive.get((user_id, lock_id)).close_sock()
+        remote_connections_alive.pop((user_id, lock_id))
 
     if response:
         return jsonify({'success': True, 'response': response.decode()})
@@ -440,4 +441,4 @@ def remote_connection():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0', thread=False)
