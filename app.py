@@ -25,8 +25,6 @@ INVALID_POST_MESSAGE = "Invalid post"
 
 @app.route("/")
 def ping():
-    print("entrio")
-    sleep(5)
     return jsonify({'success': True, "date": "27-06-2022 21:48"})
 
 
@@ -397,7 +395,6 @@ def remote_connection():
     lock_id = args.get("lock_id") if args.get("lock_id") else None
     msg = args.get("msg") if args.get("msg") else None
     close = bool(args.get("close")) if args.get("close") else False
-    print(args)
 
     if not id_token:
         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
@@ -430,15 +427,15 @@ def remote_connection():
     response = remote_connections_alive.get((user_id, lock_id)).send_msg_to_lock(msg)
 
     if close:
-        print("entra")
         remote_connections_alive.get((user_id, lock_id)).close_sock()
         remote_connections_alive.pop((user_id, lock_id))
 
     if response:
         return jsonify({'success': True, 'response': response.decode()})
     else:
+        remote_connections_alive.pop((user_id, lock_id))
         return jsonify({'success': False, 'code': 500, 'msg': f'Error communicating with door.'})
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', thread=False)
+    app.run(debug=True, host='0.0.0.0')
