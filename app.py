@@ -33,7 +33,7 @@ def _get_remote_ip(req):
 
 @app.route("/")
 def ping():
-    return jsonify({'success': True, "ip": ip})
+    return jsonify({'success': True})
 
 
 @app.route("/get-icon", methods=['GET'])
