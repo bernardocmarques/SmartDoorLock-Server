@@ -124,15 +124,18 @@ def register_door_lock():  # todo protect this (verificate certificate and check
     args = request.json
 
     mac = args.get("MAC") if args.get("MAC") else None
+    ble = args.get("BLE") if args.get("BLE") else None
     certificate = args.get("certificate") if args.get("certificate") else None
 
-    if not mac or not certificate:
+    if not mac or not certificate or not ble:
         return jsonify({'success': False, 'code': 400, 'msg': 'Missing arguments.'})
 
     mac = mac.upper()
+    ble = ble.upper()
 
     door = {
         "MAC": mac,
+        "BLE": ble,
         "certificate": certificate
     }
 
