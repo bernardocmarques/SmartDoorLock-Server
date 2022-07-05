@@ -75,6 +75,8 @@ def get_all_icon():
 
 @app.route("/get-username", methods=['GET'])
 def get_username():
+    # return jsonify({'success': False, 'code': 400, 'msg': 'API call deprecated'})  # fixme remove
+
     args = request.args
 
     id_token = args.get("id_token") if args.get("id_token") else None
@@ -276,12 +278,16 @@ def redeem_invite():  # todo protect this and also prevent multiple requests
     if not invite_id:
         return jsonify({'success': False, 'code': 400, 'msg': 'No invite id'})
 
-    username = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/username")
-
     invite = fb_util.get_data(f"invites/{invite_id}")
 
     if not invite:
         return jsonify({'success': False, 'code': 400, 'msg': 'Invalid invite'})
+
+    if invite.get("email_locked") and invite.get("email_locked") != get_decoded_claims_id_token(id_token).get('email'):
+        return jsonify({'success': False, 'code': 403, 'msg': 'No permissions. This invite is user locked!'})
+
+    # fixme change this
+    username = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/username")
 
     authorization = {
         "username": username,
