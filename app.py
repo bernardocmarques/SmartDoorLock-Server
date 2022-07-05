@@ -278,7 +278,7 @@ def redeem_invite():  # todo protect this and also prevent multiple requests
     if not invite_id:
         return jsonify({'success': False, 'code': 400, 'msg': 'No invite id'})
 
-    return _reedeem_invite_with_id(invite_id)
+    return _reedeem_invite_aux(id_token, invite_id, master_key_encrypted_lock)
 
 
 @app.route("/redeem-user-invite", methods=['POST'])
@@ -299,10 +299,10 @@ def redeem_user_invite():
     if not check_if_user(id_token):
         return jsonify({'success': False, 'code': 500, 'msg': 'Can\'t get user saved invite.'})
 
-    return _reedeem_invite_with_id(saved_invite_id)
+    return _reedeem_invite_aux(id_token, saved_invite_id, master_key_encrypted_lock)
 
 
-def _reedeem_invite_with_id(invite_id):
+def _reedeem_invite_aux(id_token, invite_id, master_key_encrypted_lock):
     invite = fb_util.get_data(f"invites/{invite_id}")
 
     if not invite:
