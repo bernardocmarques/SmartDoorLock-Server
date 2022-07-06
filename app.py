@@ -72,8 +72,9 @@ def get_all_icon():
 ''' ----------------- Lock ----------------- '''
 ''' ---------------------------------------- '''
 
+
 @app.route("/register-phone-id", methods=['POST'])
-def redeem_invite():
+def register_phone_id():
     args = request.json
 
     id_token = args.get("id_token") if args.get("id_token") else None
