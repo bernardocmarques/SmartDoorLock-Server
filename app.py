@@ -72,6 +72,33 @@ def get_all_icon():
 ''' ----------------- Lock ----------------- '''
 ''' ---------------------------------------- '''
 
+@app.route("/register-phone-id", methods=['POST'])
+def redeem_invite():
+    args = request.json
+
+    id_token = args.get("id_token") if args.get("id_token") else None
+    phone_id = args.get("phone_id") if args.get("phone_id") else None
+
+    if not id_token:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
+
+    if not check_if_user(id_token):
+        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
+
+    if not phone_id:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Phone Id'})
+
+    phone_ids = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/phone_ids")
+
+    if not phone_ids:
+        phone_ids = []
+
+    if phone_id not in phone_ids:
+        phone_ids.append(phone_ids)
+        fb_util.set_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/phone_ids", phone_ids)
+
+    return jsonify({'success': True})
+
 
 # @app.route("/get-username", methods=['GET'])
 # def get_username():
