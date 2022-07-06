@@ -95,7 +95,7 @@ def register_phone_id():
         phone_ids = []
 
     if phone_id not in phone_ids:
-        phone_ids.append(phone_ids)
+        phone_ids.append(phone_id)
         fb_util.set_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}", {"phone_ids": phone_ids})
 
     return jsonify({'success': True})
@@ -350,6 +350,7 @@ def _reedeem_invite_aux(id_token, invite_id, phone_id, master_key_encrypted_lock
 
     phone_ids = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/phone_ids")
 
+    print(phone_id, phone_ids)
     if phone_id not in phone_ids:
         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Phone Id!'})
 
