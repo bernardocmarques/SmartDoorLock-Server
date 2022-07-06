@@ -267,6 +267,8 @@ def redeem_invite():  # todo protect this and also prevent multiple requests
 
     id_token = args.get("id_token") if args.get("id_token") else None
     invite_id = args.get("invite_id") if args.get("invite_id") else None
+    phone_id = args.get("phone_id") if args.get("phone_id") else None
+
     master_key_encrypted_lock = args.get("master_key_encrypted_lock") if args.get("master_key_encrypted_lock") else None
 
     if not id_token:
@@ -278,7 +280,7 @@ def redeem_invite():  # todo protect this and also prevent multiple requests
     if not invite_id:
         return jsonify({'success': False, 'code': 400, 'msg': 'No invite id'})
 
-    return _reedeem_invite_aux(id_token, invite_id, master_key_encrypted_lock)
+    return _reedeem_invite_aux(id_token, invite_id, phone_id, master_key_encrypted_lock)
 
 
 @app.route("/redeem-user-invite", methods=['POST'])
