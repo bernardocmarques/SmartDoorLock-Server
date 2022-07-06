@@ -73,25 +73,25 @@ def get_all_icon():
 ''' ---------------------------------------- '''
 
 
-@app.route("/get-username", methods=['GET'])
-def get_username():
-    # return jsonify({'success': False, 'code': 400, 'msg': 'API call deprecated'})  # fixme remove
-
-    args = request.args
-
-    id_token = args.get("id_token") if args.get("id_token") else None
-
-    if not id_token:
-        return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
-
-    if not check_if_user(id_token):
-        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
-
-    username = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/username")
-    if not username:
-        username = fb_util.set_random_username(get_decoded_claims_id_token(id_token).get("uid"))
-
-    return jsonify({'success': True, 'username': username})
+# @app.route("/get-username", methods=['GET'])
+# def get_username():
+#     # return jsonify({'success': False, 'code': 400, 'msg': 'API call deprecated'})  # fixme remove
+#
+#     args = request.args
+#
+#     id_token = args.get("id_token") if args.get("id_token") else None
+#
+#     if not id_token:
+#         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
+#
+#     if not check_if_user(id_token):
+#         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
+#
+#     username = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/username")
+#     if not username:
+#         username = fb_util.set_random_username(get_decoded_claims_id_token(id_token).get("uid"))
+#
+#     return jsonify({'success': True, 'username': username})
 
 
 @app.route("/check-lock-registration-status", methods=['GET'])
@@ -248,12 +248,12 @@ def request_authorization():
 
     data_dict = json.loads(data)
     mac = data_dict["smart_lock_MAC"].upper()
-    username = data_dict["username"]
+    phone_id = data_dict["phone_id"]
 
-    if not username or not mac:
-        return jsonify({'success': False, 'code': 400, 'msg': 'No username or mac'})
+    if not phone_id or not mac:
+        return jsonify({'success': False, 'code': 400, 'msg': 'No phone_id or mac'})
 
-    response = fb_util.get_data(f'authorizations/{mac}/{username}')
+    response = fb_util.get_data(f'authorizations/{mac}/{phone_id}')
 
     print(response)
     print(len(str(response)))
@@ -286,23 +286,30 @@ def redeem_user_invite():
     args = request.json
 
     id_token = args.get("id_token") if args.get("id_token") else None
+    phone_id = args.get("phone_id") if args.get("phone_id") else None
     master_key_encrypted_lock = args.get("master_key_encrypted_lock") if args.get("master_key_encrypted_lock") else None
 
     if not id_token:
         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
 
+    if not phone_id:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Phone Id'})
+
+    if not master_key_encrypted_lock:
+        return jsonify({'success': False, 'code': 403, 'msg': 'No Master Key'})
+
     if not check_if_user(id_token):
         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
 
-    saved_invite_id = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/saved-invite")
+    saved_invite_id = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/saved_invite")
 
     if not check_if_user(id_token):
         return jsonify({'success': False, 'code': 500, 'msg': 'Can\'t get user saved invite.'})
 
-    return _reedeem_invite_aux(id_token, saved_invite_id, master_key_encrypted_lock)
+    return _reedeem_invite_aux(id_token, saved_invite_id, phone_id, master_key_encrypted_lock)
 
 
-def _reedeem_invite_aux(id_token, invite_id, master_key_encrypted_lock):
+def _reedeem_invite_aux(id_token, invite_id, phone_id, master_key_encrypted_lock):
     invite = fb_util.get_data(f"invites/{invite_id}")
 
     if not invite:
@@ -311,11 +318,13 @@ def _reedeem_invite_aux(id_token, invite_id, master_key_encrypted_lock):
     if invite.get("email_locked") and invite.get("email_locked") != get_decoded_claims_id_token(id_token).get('email'):
         return jsonify({'success': False, 'code': 403, 'msg': 'No permissions. This invite is user locked!'})
 
-    # fixme change this
-    username = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/username")
+    phone_ids = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/phone_ids")
+
+    if phone_id not in phone_ids:
+        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Phone Id!'})
 
     authorization = {
-        "username": username,
+        "phone_id": phone_id,
         "smart_lock_MAC": invite["smart_lock_MAC"],
         "type": invite["type"],
         "master_key_encrypted_lock": master_key_encrypted_lock
@@ -332,7 +341,7 @@ def _reedeem_invite_aux(id_token, invite_id, master_key_encrypted_lock):
         authorization["one_day"] = invite["one_day"]
 
     fb_util.delete_key(f"invites/{invite_id}")
-    fb_util.set_data(f"authorizations/{authorization['smart_lock_MAC']}/{username}", authorization)
+    fb_util.set_data(f"authorizations/{authorization['smart_lock_MAC']}/{phone_id}", authorization)
 
     return jsonify({'success': True})
 
@@ -361,7 +370,7 @@ def save_user_invite():
     if invite.get("email_locked") and invite.get("email_locked") != get_decoded_claims_id_token(id_token).get('email'):
         return jsonify({'success': False, 'code': 403, 'msg': 'No permissions. This invite is user locked!'})
 
-    fb_util.set_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}", {"saved-invite": invite_id})
+    fb_util.set_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}", {"saved_invite": invite_id})
 
     return jsonify({'success': True})
 
@@ -369,7 +378,6 @@ def save_user_invite():
 @app.route("/check-user-invite", methods=['GET'])
 def check_user_invite():
     args = request.args
-
     id_token = args.get("id_token") if args.get("id_token") else None
 
     if not id_token:
@@ -378,7 +386,7 @@ def check_user_invite():
     if not check_if_user(id_token):
         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
 
-    saved_invite = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/saved-invite")
+    saved_invite = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/saved_invite")
 
     return jsonify({'success': True, "got_invite": not not saved_invite})
 
