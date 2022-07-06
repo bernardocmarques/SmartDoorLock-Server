@@ -96,7 +96,7 @@ def register_phone_id():
 
     if phone_id not in phone_ids:
         phone_ids.append(phone_ids)
-        fb_util.set_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/phone_ids", phone_ids)
+        fb_util.set_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}", {"phone_ids": phone_ids})
 
     return jsonify({'success': True})
 
