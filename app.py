@@ -336,7 +336,12 @@ def redeem_user_invite():
     if not check_if_user(id_token):
         return jsonify({'success': False, 'code': 500, 'msg': 'Can\'t get user saved invite.'})
 
-    return _reedeem_invite_aux(id_token, saved_invite_id, phone_id, master_key_encrypted_lock)
+    response = _reedeem_invite_aux(id_token, saved_invite_id, phone_id, master_key_encrypted_lock)
+
+    if response.get_json().get("success"):
+        fb_util.delete_key(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/saved_invite")
+
+    return response
 
 
 def _reedeem_invite_aux(id_token, invite_id, phone_id, master_key_encrypted_lock):
