@@ -180,7 +180,6 @@ def get_door_certificate():
     args = request.args
     id_token = args.get("id_token") if args.get("id_token") else None
     smart_lock_mac = args.get("smart_lock_mac").upper() if args.get("smart_lock_mac") else None
-    print(id_token)
     if not id_token:
         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
 
@@ -283,8 +282,7 @@ def request_authorization():
 
     response = fb_util.get_data(f'authorizations/{mac}/{phone_id}')
 
-    print(response)
-    print(len(str(response)))
+
 
     return jsonify({'success': True, 'data': response})
 
@@ -308,7 +306,7 @@ def redeem_invite():  # todo protect this and also prevent multiple requests
     if not invite_id:
         return jsonify({'success': False, 'code': 400, 'msg': 'No invite id'})
 
-    return _reedeem_invite_aux(id_token, invite_id, phone_id, master_key_encrypted_lock)
+    return _redeem_invite_aux(id_token, invite_id, phone_id, master_key_encrypted_lock)
 
 
 @app.route("/redeem-user-invite", methods=['POST'])
@@ -335,12 +333,12 @@ def redeem_user_invite():
     if not check_if_user(id_token):
         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
 
-    saved_invite_id = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/saved_invite")
+    saved_invite_id = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/locks/{lock_id}/saved_invite")
 
     if not check_if_user(id_token):
         return jsonify({'success': False, 'code': 500, 'msg': 'Can\'t get user saved invite.'})
 
-    response = _reedeem_invite_aux(id_token, saved_invite_id, phone_id, master_key_encrypted_lock)
+    response = _redeem_invite_aux(id_token, saved_invite_id, phone_id, master_key_encrypted_lock)
 
     if response.get_json().get("success"):
         fb_util.delete_key(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/locks/{lock_id}/saved_invite")
@@ -348,7 +346,7 @@ def redeem_user_invite():
     return response
 
 
-def _reedeem_invite_aux(id_token, invite_id, phone_id, master_key_encrypted_lock):
+def _redeem_invite_aux(id_token, invite_id, phone_id, master_key_encrypted_lock):
     invite = fb_util.get_data(f"invites/{invite_id}")
 
     if not invite:
@@ -359,7 +357,6 @@ def _reedeem_invite_aux(id_token, invite_id, phone_id, master_key_encrypted_lock
 
     phone_ids = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/phone_ids")
 
-    print(phone_id, phone_ids)
     if phone_id not in phone_ids:
         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Phone Id!'})
 
@@ -406,7 +403,6 @@ def save_user_invite():
     if not lock_id:
         return jsonify({'success': False, 'code': 400, 'msg': 'No lock id'})
 
-    print(invite_id)
 
     invite = fb_util.get_data(f"invites/{invite_id}")
 
