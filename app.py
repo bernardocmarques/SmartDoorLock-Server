@@ -343,7 +343,7 @@ def redeem_user_invite():
     response = _reedeem_invite_aux(id_token, saved_invite_id, phone_id, master_key_encrypted_lock)
 
     if response.get_json().get("success"):
-        fb_util.delete_key(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/{lock_id}/saved_invite")
+        fb_util.delete_key(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/locks/{lock_id}/saved_invite")
 
     return response
 
@@ -414,7 +414,7 @@ def save_user_invite():
     if invite.get("email_locked") and invite.get("email_locked") != get_decoded_claims_id_token(id_token).get('email'):
         return jsonify({'success': False, 'code': 403, 'msg': 'No permissions. This invite is user locked!'})
 
-    fb_util.set_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/{lock_id}", {"saved_invite": invite_id})
+    fb_util.set_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/locks/{lock_id}", {"saved_invite": invite_id})
 
     return jsonify({'success': True})
 
@@ -434,7 +434,7 @@ def check_user_invite():
     if not lock_id:
         return jsonify({'success': False, 'code': 400, 'msg': 'No lock id'})
 
-    saved_invite = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/{lock_id}/saved_invite")
+    saved_invite = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/locks/{lock_id}/saved_invite")
 
     return jsonify({'success': True, "got_invite": not not saved_invite})
 
