@@ -406,6 +406,8 @@ def save_user_invite():
     if not lock_id:
         return jsonify({'success': False, 'code': 400, 'msg': 'No lock id'})
 
+    print(invite_id)
+
     invite = fb_util.get_data(f"invites/{invite_id}")
 
     if not invite:
