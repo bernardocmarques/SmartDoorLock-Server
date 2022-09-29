@@ -21,24 +21,24 @@ class FirebaseUtil:
 
         self.db = db
 
-    def delete_key(self, path):
+    def get_data(self, path):
         ref = self.db.reference(path)
-        ref.delete()
-        return True
+        return ref.get()
 
     def set_data(self, path, data):
         ref = self.db.reference(path)
         ref.update(data)
         return True
 
+    def delete_key(self, path):
+        ref = self.db.reference(path)
+        ref.delete()
+        return True
+
     def add_data_to_path(self, path, data):
         ref = self.db.reference(f"{path}/{generate_random_id(8)}")
         ref.update(data)
         return True
-
-    def get_data(self, path):
-        ref = self.db.reference(path)
-        return ref.get()
 
     def get_data_where_child_equal_to(self, path, child, value):
         ref = self.db.reference(path)

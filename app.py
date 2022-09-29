@@ -220,18 +220,17 @@ def get_door_certificate():
 #
 #     return jsonify({'success': True, 'inviteID': invite_code})
 
+def _get_lock_rsa_key(smart_lock_MAC):
+    pass # todo implement
+
 
 @app.route("/register-invite", methods=['POST'])
 def register_invite():
     args = request.json
-    signature = args.get("signature") if args.get("signature") else None
+    signature = args.get("signature") if args.get("signature") else None  # todo protect with timestamp
 
     if not signature:
         return jsonify({'success': False, 'code': 403, 'msg': 'Message not signed'})
-
-    rsa = RSA_Util("public_key.pem")
-    if not rsa.is_signature_valid(args.get("data"), signature):
-        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid signature'})
 
     data = args.get("data") if args.get("data") else None
 
@@ -240,6 +239,11 @@ def register_invite():
 
     data_dict = json.loads(data)
     data_dict["smart_lock_MAC"] = data_dict["smart_lock_MAC"].upper()
+
+    rsa = RSA_Util(_get_lock_rsa_key(data_dict["smart_lock_MAC"])) # todo change hardcode
+    if not rsa.is_signature_valid(args.get("data"), signature):
+        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid signature'})
+
 
     if data_dict.get("weekdays_str"):
         data_dict["weekdays"] = [int(i) for i in data_dict["weekdays_str"]]
@@ -259,12 +263,12 @@ def register_invite():
 @app.route("/request-authorization", methods=['POST'])
 def request_authorization():
     args = request.json
-    signature = args.get("signature") if args.get("signature") else None
+    signature = args.get("signature") if args.get("signature") else None  # todo protect with timestamp
 
     if not signature:
         return jsonify({'success': False, 'code': 403, 'msg': 'Message not signed'})
 
-    rsa = RSA_Util("public_key.pem")
+    rsa = RSA_Util("public_key.pem")  # todo change hardcode
     if not rsa.is_signature_valid(args["data"], signature):
         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid signature'})
 
@@ -281,8 +285,6 @@ def request_authorization():
         return jsonify({'success': False, 'code': 400, 'msg': 'No phone_id or mac'})
 
     response = fb_util.get_data(f'authorizations/{mac}/{phone_id}')
-
-
 
     return jsonify({'success': True, 'data': response})
 
@@ -333,7 +335,8 @@ def redeem_user_invite():
     if not check_if_user(id_token):
         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
 
-    saved_invite_id = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/locks/{lock_id}/saved_invite")
+    saved_invite_id = fb_util.get_data(
+        f"users/{get_decoded_claims_id_token(id_token).get('uid')}/locks/{lock_id}/saved_invite")
 
     if not check_if_user(id_token):
         return jsonify({'success': False, 'code': 500, 'msg': 'Can\'t get user saved invite.'})
@@ -403,7 +406,6 @@ def save_user_invite():
     if not lock_id:
         return jsonify({'success': False, 'code': 400, 'msg': 'No lock id'})
 
-
     invite = fb_util.get_data(f"invites/{invite_id}")
 
     if not invite:
@@ -412,7 +414,8 @@ def save_user_invite():
     if invite.get("email_locked") and invite.get("email_locked") != get_decoded_claims_id_token(id_token).get('email'):
         return jsonify({'success': False, 'code': 403, 'msg': 'No permissions. This invite is user locked!'})
 
-    fb_util.set_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/locks/{lock_id}", {"saved_invite": invite_id})
+    fb_util.set_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/locks/{lock_id}",
+                     {"saved_invite": invite_id})
 
     return jsonify({'success': True})
 
@@ -432,7 +435,8 @@ def check_user_invite():
     if not lock_id:
         return jsonify({'success': False, 'code': 400, 'msg': 'No lock id'})
 
-    saved_invite = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/locks/{lock_id}/saved_invite")
+    saved_invite = fb_util.get_data(
+        f"users/{get_decoded_claims_id_token(id_token).get('uid')}/locks/{lock_id}/saved_invite")
 
     return jsonify({'success': True, "got_invite": not not saved_invite})
 
@@ -532,7 +536,6 @@ def get_lock_mac():
 
 
 remote_connections_alive: dict[tuple, LockClient] = {}
-
 
 @app.route("/remote-connection", methods=['POST'])
 def remote_connection():
