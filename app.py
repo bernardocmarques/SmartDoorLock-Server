@@ -5,15 +5,14 @@ from time import sleep
 from flask import Flask, request, jsonify, abort, redirect, make_response, send_file
 from flask_cors import CORS
 from firebase_util import *
-from rsa_util import RSA_Util
+from rsa_util import RSA_Util, get_rsa_key_from_x509_cert
 from lock_client_util import LockClient
 
 os.chdir(os.path.dirname(__file__))
 
 app = Flask(__name__)
 cors = CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)  # fixme change this.
-
-fb_util = FirebaseUtil()
+fb_util: FirebaseUtil
 
 INVALID_GET_MESSAGE = "Invalid get"
 INVALID_POST_MESSAGE = "Invalid post"
@@ -101,27 +100,6 @@ def register_phone_id():
     return jsonify({'success': True})
 
 
-# @app.route("/get-username", methods=['GET'])
-# def get_username():
-#     # return jsonify({'success': False, 'code': 400, 'msg': 'API call deprecated'})  # fixme remove
-#
-#     args = request.args
-#
-#     id_token = args.get("id_token") if args.get("id_token") else None
-#
-#     if not id_token:
-#         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
-#
-#     if not check_if_user(id_token):
-#         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
-#
-#     username = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/username")
-#     if not username:
-#         username = fb_util.set_random_username(get_decoded_claims_id_token(id_token).get("uid"))
-#
-#     return jsonify({'success': True, 'username': username})
-
-
 @app.route("/check-lock-registration-status", methods=['GET'])
 def check_lock_registration_status():
     args = request.args
@@ -150,7 +128,7 @@ def check_lock_registration_status():
 
 
 @app.route("/register-door-lock", methods=['POST'])
-def register_door_lock():  # todo protect this (verificate certificate and check if for right mac)
+def register_door_lock():  # todo protect this (verificate certificate and check if for right mac) and add test
     args = request.json
 
     mac = args.get("MAC") if args.get("MAC") else None
@@ -166,11 +144,11 @@ def register_door_lock():  # todo protect this (verificate certificate and check
     door = {
         "MAC": mac,
         "BLE": ble,
-        "certificate": certificate
+        "certificate": certificate,
+        "IP": _get_remote_ip(request)
     }
 
     fb_util.set_data(f"doors/{mac}", door)
-    fb_util.set_data(f"doors/{mac}", {"IP": _get_remote_ip(request)})
 
     return jsonify({'success': True})
 
@@ -190,6 +168,9 @@ def get_door_certificate():
         return jsonify({'success': False, 'code': 400, 'msg': 'No smart_lock_mac'})
 
     certificate = fb_util.get_data(f"doors/{smart_lock_mac}/certificate")
+
+    if not certificate:
+        return jsonify({'success': False, 'code': 400, 'msg': 'Invalid smart_lock_mac'})
 
     return jsonify({'success': True, 'certificate': certificate})
 
@@ -220,30 +201,41 @@ def get_door_certificate():
 #
 #     return jsonify({'success': True, 'inviteID': invite_code})
 
+
 def _get_lock_rsa_key(smart_lock_MAC):
-    pass # todo implement
+    cert = f"-----BEGIN CERTIFICATE-----{fb_util.get_data(f'doors/{smart_lock_MAC}/certificate')}-----END CERTIFICATE-----"
+    return get_rsa_key_from_x509_cert(cert)
+
+
+def _validate_signature_and_get_data_dict(args):
+    signature = args.get("signature") if args.get("signature") else None  # todo protect with timestamp
+
+    if not signature:
+        return {'success': False, 'code': 403, 'msg': 'Message not signed'}, None
+
+    data = args.get("data") if args.get("data") else None
+
+    if not data:
+        return {'success': False, 'code': 400, 'msg': 'Invalid data'}, None
+
+    data_dict = json.loads(data)
+    data_dict["smart_lock_MAC"] = data_dict["smart_lock_MAC"].upper()
+
+    rsa = RSA_Util(key_str=_get_lock_rsa_key(data_dict["smart_lock_MAC"]))
+    if not rsa.is_signature_valid(args.get("data"), signature):
+        return {'success': False, 'code': 403, 'msg': 'Invalid signature'}, None
+
+    return {'success': True}, data_dict
 
 
 @app.route("/register-invite", methods=['POST'])
 def register_invite():
     args = request.json
-    signature = args.get("signature") if args.get("signature") else None  # todo protect with timestamp
 
-    if not signature:
-        return jsonify({'success': False, 'code': 403, 'msg': 'Message not signed'})
+    response, data_dict = _validate_signature_and_get_data_dict(args)
 
-    data = args.get("data") if args.get("data") else None
-
-    if not data:
-        return jsonify({'success': False, 'code': 400, 'msg': 'Invalid data'})
-
-    data_dict = json.loads(data)
-    data_dict["smart_lock_MAC"] = data_dict["smart_lock_MAC"].upper()
-
-    rsa = RSA_Util(_get_lock_rsa_key(data_dict["smart_lock_MAC"])) # todo change hardcode
-    if not rsa.is_signature_valid(args.get("data"), signature):
-        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid signature'})
-
+    if not response['success']:
+        return jsonify(response)
 
     if data_dict.get("weekdays_str"):
         data_dict["weekdays"] = [int(i) for i in data_dict["weekdays_str"]]
@@ -263,21 +255,11 @@ def register_invite():
 @app.route("/request-authorization", methods=['POST'])
 def request_authorization():
     args = request.json
-    signature = args.get("signature") if args.get("signature") else None  # todo protect with timestamp
+    response, data_dict = _validate_signature_and_get_data_dict(args)
 
-    if not signature:
-        return jsonify({'success': False, 'code': 403, 'msg': 'Message not signed'})
+    if not response['success']:
+        return jsonify(response)
 
-    rsa = RSA_Util("public_key.pem")  # todo change hardcode
-    if not rsa.is_signature_valid(args["data"], signature):
-        return jsonify({'success': False, 'code': 403, 'msg': 'Invalid signature'})
-
-    data = args.get("data") if args.get("data") else None
-
-    if not data:
-        return jsonify({'success': False, 'code': 400, 'msg': 'Invalid data'})
-
-    data_dict = json.loads(data)
     mac = data_dict["smart_lock_MAC"].upper()
     phone_id = data_dict["phone_id"]
 
@@ -338,7 +320,7 @@ def redeem_user_invite():
     saved_invite_id = fb_util.get_data(
         f"users/{get_decoded_claims_id_token(id_token).get('uid')}/locks/{lock_id}/saved_invite")
 
-    if not check_if_user(id_token):
+    if not saved_invite_id:
         return jsonify({'success': False, 'code': 500, 'msg': 'Can\'t get user saved invite.'})
 
     response = _redeem_invite_aux(id_token, saved_invite_id, phone_id, master_key_encrypted_lock)
@@ -498,15 +480,21 @@ def delete_user_locks():
         return jsonify({'success': False, 'code': 403, 'msg': 'No Id Token'})
 
     if not lock_id:
-        return jsonify({'success': False, 'code': 403, 'msg': 'No Lock Id'})
+        return jsonify({'success': False, 'code': 400, 'msg': 'No Lock Id'})
 
     if not check_if_user(id_token):
         return jsonify({'success': False, 'code': 403, 'msg': 'Invalid Id Token'})
 
+    phone_ids = fb_util.get_data(f"users/{get_decoded_claims_id_token(id_token).get('uid')}/phone_ids")
+
+    if not phone_ids:
+        phone_ids = []
+
     user_id = get_decoded_claims_id_token(id_token).get('uid')
 
     fb_util.delete_key(f"users/{user_id}/locks/{lock_id}")
-    fb_util.delete_key(f"authorizations/{lock_id}/{user_id}")
+    for phone_id in phone_ids:
+        fb_util.delete_key(f"authorizations/{lock_id}/{phone_id}")
 
     return jsonify({'success': True})
 
@@ -536,6 +524,7 @@ def get_lock_mac():
 
 
 remote_connections_alive: dict[tuple, LockClient] = {}
+
 
 @app.route("/remote-connection", methods=['POST'])
 def remote_connection():
@@ -586,5 +575,14 @@ def remote_connection():
         return jsonify({'success': False, 'code': 500, 'msg': f'Error communicating with door.'})
 
 
+def create_fb_util(fb_util_test=None):
+    global fb_util
+    if fb_util_test:
+        fb_util = fb_util_test
+    else:
+        fb_util = FirebaseUtil()
+
+
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0')
+    create_fb_util()

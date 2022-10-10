@@ -6,24 +6,34 @@ from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto import Random
 
+from cryptography.x509 import load_pem_x509_certificate
+from cryptography.hazmat.primitives import serialization
 
-def import_public_key_from_file(filename):
-    with open(filename, 'r') as file:
-        key_data = file.read()
-        return RSA.importKey(key_data)
+
+def get_rsa_key_from_x509_cert(cert):
+    cert_obj = load_pem_x509_certificate(cert.encode())
+    public_key_obj = cert_obj.public_key()
+
+    public_key = public_key_obj.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
+    return public_key  # todo implement
 
 
 class RSA_Util:
-
-    def __init__(self, filename=None):
-        if not filename:
-            random_generator = Random.new().read
-            self.key = RSA.generate(2048, random_generator)
-            self.export_key_to_file("key")
-        else:
+    def __init__(self, filename=None, key_str=None):
+        if filename:
             with open(filename, 'r') as file:
                 key_data = file.read()
                 self.key = RSA.importKey(key_data)
+        elif key_str:
+            self.key = RSA.importKey(key_str)
+        else:
+            random_generator = Random.new().read
+            self.key = RSA.generate(2048, random_generator)
+            self.export_key_to_file("key")
 
     def get_public_key(self):
         return self.key.publickey()
@@ -57,6 +67,13 @@ class RSA_Util:
         except (ValueError, TypeError):
             return False
 
+    def sign(self, message):
+        signer = pss.new(self.key)
+        digest = SHA256.new()
+        digest.update(message.encode())
+
+        return base64.b64encode(signer.sign(digest))
+
     def get_public_key_base64(self, mode="DER"):
         return base64.b64encode(self.key.publickey().exportKey(mode)).decode()
 
@@ -67,4 +84,3 @@ class RSA_Util:
     def export_key_to_file(self, filename):
         with open(filename, "wb") as file:
             file.write(self.key.exportKey())
-
