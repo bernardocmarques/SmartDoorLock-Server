@@ -576,6 +576,7 @@ def remote_connection():
 
 
 def create_fb_util(fb_util_test=None):
+
     global fb_util
     if fb_util_test:
         fb_util = fb_util_test
@@ -584,5 +585,5 @@ def create_fb_util(fb_util_test=None):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0')
     create_fb_util()
+    app.run(debug=True, host='0.0.0.0')
