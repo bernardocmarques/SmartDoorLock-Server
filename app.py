@@ -32,6 +32,8 @@ def _get_remote_ip(req):
 
 @app.route("/")
 def ping():
+    if not fb_util:
+        return jsonify({'success': False, 'msg': 'fb_util is null'})
     return jsonify({'success': True})
 
 
@@ -576,7 +578,6 @@ def remote_connection():
 
 
 def create_fb_util(fb_util_test=None):
-
     global fb_util
     if fb_util_test:
         fb_util = fb_util_test
