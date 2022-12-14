@@ -11,7 +11,7 @@ from lock_client_util import LockClient
 os.chdir(os.path.dirname(__file__))
 
 app = Flask(__name__)
-cors = CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)  # fixme change this.
+cors = CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 fb_util: FirebaseUtil
 
 INVALID_GET_MESSAGE = "Invalid get"
@@ -130,7 +130,7 @@ def check_lock_registration_status():
 
 
 @app.route("/register-door-lock", methods=['POST'])
-def register_door_lock():  # todo protect this (verificate certificate and check if for right mac) and add test
+def register_door_lock():
     args = request.json
 
     mac = args.get("MAC") if args.get("MAC") else None
@@ -210,7 +210,7 @@ def _get_lock_rsa_key(smart_lock_MAC):
 
 
 def _validate_signature_and_get_data_dict(args):
-    signature = args.get("signature") if args.get("signature") else None  # todo protect with timestamp
+    signature = args.get("signature") if args.get("signature") else None
 
     if not signature:
         return {'success': False, 'code': 403, 'msg': 'Message not signed'}, None
@@ -274,7 +274,7 @@ def request_authorization():
 
 
 @app.route("/redeem-invite", methods=['POST'])
-def redeem_invite():  # todo protect this and also prevent multiple requests
+def redeem_invite():
     args = request.json
 
     id_token = args.get("id_token") if args.get("id_token") else None

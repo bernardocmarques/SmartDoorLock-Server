@@ -19,7 +19,7 @@ def get_rsa_key_from_x509_cert(cert):
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
 
-    return public_key  # todo implement
+    return public_key
 
 
 class RSA_Util:

@@ -1,0 +1,4 @@
+/venv/
+firebase_credentials.json
+/.idea/
+/public_key___.pem

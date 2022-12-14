@@ -10,7 +10,7 @@ class LockClient:
         self._open_sock()
 
     def _open_sock(self):
-        self.sock.connect((self.ip, 3333))  # fixme hardcoded
+        self.sock.connect((self.ip, 3333))
         self.sock.settimeout(3)
 
     def send_msg_to_lock(self, msg):
